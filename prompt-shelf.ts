@@ -26,7 +26,6 @@ import {
 } from "@mariozechner/pi-tui";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { homedir } from "node:os";
 
 interface ShelfItem {
   id: string;
@@ -34,11 +33,16 @@ interface ShelfItem {
   timestamp: number;
 }
 
-const SHELF_FILE = join(homedir(), ".pi", "agent", "prompt-shelf.json");
+function shelfFile(cwd: string, sessionId: string): string {
+  return join(cwd, ".pi", "prompt-shelf", `${sessionId}.json`);
+}
 
-function loadShelf(): { items: ShelfItem[]; nextId: number } {
+function loadShelf(
+  cwd: string,
+  sessionId: string,
+): { items: ShelfItem[]; nextId: number } {
   try {
-    const raw = readFileSync(SHELF_FILE, "utf-8");
+    const raw = readFileSync(shelfFile(cwd, sessionId), "utf-8");
     const data = JSON.parse(raw) as { items?: ShelfItem[]; nextId?: number };
     return {
       items: Array.isArray(data.items) ? data.items : [],
@@ -49,18 +53,28 @@ function loadShelf(): { items: ShelfItem[]; nextId: number } {
   }
 }
 
-function saveShelf(items: ShelfItem[], nextId: number): void {
-  mkdirSync(dirname(SHELF_FILE), { recursive: true });
-  writeFileSync(SHELF_FILE, JSON.stringify({ items, nextId }, null, 2));
+function saveShelf(
+  cwd: string,
+  sessionId: string,
+  items: ShelfItem[],
+  nextId: number,
+): void {
+  const file = shelfFile(cwd, sessionId);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify({ items, nextId }, null, 2));
 }
 
 export default function (pi: ExtensionAPI) {
   let shelf: ShelfItem[] = [];
   let nextId = 1;
   let currentCtx: ExtensionContext | undefined;
+  let currentCwd: string | undefined;
+  let currentSessionId: string | undefined;
 
   function persist() {
-    saveShelf(shelf, nextId);
+    if (currentCwd && currentSessionId) {
+      saveShelf(currentCwd, currentSessionId, shelf, nextId);
+    }
   }
 
   function updateWidget() {
@@ -354,10 +368,12 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  // Load shelf from disk and show widget
+  // Load shelf scoped to cwd + session ID
   pi.on("session_start", async (_event, ctx) => {
     currentCtx = ctx;
-    const loaded = loadShelf();
+    currentCwd = ctx.cwd;
+    currentSessionId = ctx.sessionManager.getSessionId();
+    const loaded = loadShelf(currentCwd, currentSessionId);
     shelf = loaded.items;
     nextId = loaded.nextId;
     updateWidget();
