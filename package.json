@@ -1,0 +1,15 @@
+{
+  "name": "pi-prompt-shelf",
+  "version": "1.0.0",
+  "description": "Pi extension: stash prompts into a persistent shelf with keyboard shortcuts and interactive picker",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "author": "Tanishq Kancharla",
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "pi": {
+    "extensions": ["./prompt-shelf.ts"]
+  }
+}
