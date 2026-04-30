@@ -5,8 +5,15 @@
   "keywords": [
     "pi-package"
   ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "license": "MIT",
   "author": "Tanishq Kancharla",
+  "devDependencies": {
+    "@types/node": "latest",
+    "typescript": "latest"
+  },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*",
     "@mariozechner/pi-tui": "*"

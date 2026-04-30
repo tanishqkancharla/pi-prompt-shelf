@@ -25,7 +25,9 @@ import {
   truncateToWidth,
 } from "@mariozechner/pi-tui";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { basename, dirname, join } from "node:path";
 
 interface ShelfItem {
   id: string;
@@ -33,7 +35,23 @@ interface ShelfItem {
   timestamp: number;
 }
 
+function projectShelfDir(cwd: string): string {
+  const projectName = basename(cwd) || "project";
+  const safeProjectName = projectName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const cwdHash = createHash("sha256").update(cwd).digest("hex").slice(0, 12);
+  return join(
+    homedir(),
+    ".pi",
+    "prompt-shelf",
+    `${safeProjectName}-${cwdHash}`,
+  );
+}
+
 function shelfFile(cwd: string, sessionId: string): string {
+  return join(projectShelfDir(cwd), `${sessionId}.json`);
+}
+
+function legacyShelfFile(cwd: string, sessionId: string): string {
   return join(cwd, ".pi", "prompt-shelf", `${sessionId}.json`);
 }
 
@@ -41,16 +59,23 @@ function loadShelf(
   cwd: string,
   sessionId: string,
 ): { items: ShelfItem[]; nextId: number } {
-  try {
-    const raw = readFileSync(shelfFile(cwd, sessionId), "utf-8");
-    const data = JSON.parse(raw) as { items?: ShelfItem[]; nextId?: number };
-    return {
-      items: Array.isArray(data.items) ? data.items : [],
-      nextId: typeof data.nextId === "number" ? data.nextId : 1,
-    };
-  } catch {
-    return { items: [], nextId: 1 };
+  for (const file of [
+    shelfFile(cwd, sessionId),
+    legacyShelfFile(cwd, sessionId),
+  ]) {
+    try {
+      const raw = readFileSync(file, "utf-8");
+      const data = JSON.parse(raw) as { items?: ShelfItem[]; nextId?: number };
+      return {
+        items: Array.isArray(data.items) ? data.items : [],
+        nextId: typeof data.nextId === "number" ? data.nextId : 1,
+      };
+    } catch {
+      // Try the next location. This preserves shelves written by older versions.
+    }
   }
+
+  return { items: [], nextId: 1 };
 }
 
 function saveShelf(
@@ -409,8 +434,10 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Alt+1..9 to restore by number
-  for (let n = 1; n <= 9; n++) {
-    pi.registerShortcut(Key.alt(String(n)), {
+  const restoreKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
+  for (const [index, key] of restoreKeys.entries()) {
+    const n = index + 1;
+    pi.registerShortcut(Key.alt(key), {
       description: `Restore shelved prompt #${n}`,
       handler: async (ctx) => {
         if (n > shelf.length) {
