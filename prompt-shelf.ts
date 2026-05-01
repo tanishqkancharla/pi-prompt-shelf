@@ -135,7 +135,7 @@ export default function (pi: ExtensionAPI) {
           const topFill = w - 2 - title.length; // 2 for ╭╮
           lines.push(
             theme.fg("border", "╭─") +
-              theme.fg("accent", title) +
+              theme.fg("border", title) +
               theme.fg("border", "─".repeat(Math.max(0, topFill - 1)) + "╮"),
           );
 
@@ -266,7 +266,7 @@ export default function (pi: ExtensionAPI) {
           const topFill = w - 2 - title.length;
           lines.push(
             theme.fg("border", "╭─") +
-              theme.fg("accent", title) +
+              theme.fg("border", title) +
               theme.fg("border", "─".repeat(Math.max(0, topFill - 1)) + "╮"),
           );
 
